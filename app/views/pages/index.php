@@ -1,5 +1,48 @@
-<?php require APPROOT . '/views/inc/header.php'; ?>
+<?php require APPROOT . '/views/inc/header.php'; 
 
+// Fonction Helper : Système automatique d'images pour la Homepage (Démonstration)
+function getHomepageDemoImage($property) {
+    if (!empty($property->primary_image)) {
+        return URLROOT . '/uploads/' . $property->primary_image;
+    }
+    
+    // Si pas d'image, on retourne une belle image selon la catégorie (Unsplash statique de haute qualité)
+    $cat = strtolower($property->category_name);
+    
+    // Fallback images haute qualité par catégorie
+    if (strpos($cat, 'appartement') !== false) {
+        $images = [
+            'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1502672260266-1c1f2d9368ce?auto=format&fit=crop&w=800&q=80'
+        ];
+    } elseif (strpos($cat, 'maison') !== false) {
+        $images = [
+            'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?auto=format&fit=crop&w=800&q=80'
+        ];
+    } elseif (strpos($cat, 'villa') !== false) {
+        $images = [
+            'https://images.unsplash.com/photo-1580587771525-78b9dba3b914?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80'
+        ];
+    } elseif (strpos($cat, 'studio') !== false) {
+        $images = [
+            'https://images.unsplash.com/photo-1536376072261-38c75010e6c9?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1554995207-c18c203602cb?auto=format&fit=crop&w=800&q=80'
+        ];
+    } else { // Résidence ou autre
+        $images = [
+            'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=800&q=80',
+            'https://images.unsplash.com/photo-1542314831-c6a4d14d8c85?auto=format&fit=crop&w=800&q=80'
+        ];
+    }
+    
+    // Sélection pseudo-aléatoire basée sur l'ID de la propriété pour garder la même image
+    $index = $property->id % count($images);
+    return $images[$index];
+}
+
+?>
 <!-- Hero Section -->
 <section class="hero" style="background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), url('https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&w=1920&q=80') center/cover; height: 60vh; display: flex; align-items: center; justify-content: center; text-align: center; color: white;">
     <div style="max-width: 800px; padding: 20px;">
@@ -62,7 +105,7 @@
             <?php foreach($data['featured'] as $prop): ?>
                 <div class="property-card" onclick="window.location.href='<?= URLROOT; ?>/residences/show/<?= $prop->id; ?>'">
                     <div class="property-image">
-                        <img src="<?= $prop->primary_image ? URLROOT.'/uploads/'.$prop->primary_image : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80'; ?>" alt="<?= htmlspecialchars($prop->title); ?>">
+                        <img src="<?= getHomepageDemoImage($prop); ?>" alt="<?= htmlspecialchars($prop->title); ?>" loading="lazy" style="background-color: var(--bg-light);">
                         
                         <?php if($prop->listing_type == 'reservation'): ?>
                             <span class="property-badge" style="background: var(--primary);">Réservation</span>
