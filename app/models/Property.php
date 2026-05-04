@@ -54,10 +54,17 @@ class Property {
         return $this->db->resultSet();
     }
 
-    // Par ID
+    // Par ID — avec infos complètes du propriétaire
     public function getById($id) {
-        $this->db->query('SELECT p.*, c.name as category_name, u.first_name, u.last_name, u.avatar, u.phone as owner_phone, u.email as owner_email
-            FROM properties p LEFT JOIN categories c ON p.category_id = c.id LEFT JOIN users u ON p.owner_id = u.id WHERE p.id = :id');
+        $this->db->query('SELECT p.*, c.name as category_name, 
+            u.first_name, u.last_name, u.avatar, u.phone as owner_phone, u.email as owner_email,
+            u.city as owner_city, u.created_at as owner_created_at, 
+            u.is_verified as owner_is_verified, u.verification_badge as owner_verification_badge,
+            u.bio as owner_bio
+            FROM properties p 
+            LEFT JOIN categories c ON p.category_id = c.id 
+            LEFT JOIN users u ON p.owner_id = u.id 
+            WHERE p.id = :id');
         $this->db->bind(':id', $id);
         $property = $this->db->single();
         if ($property) {
@@ -67,6 +74,13 @@ class Property {
             $this->db->execute();
         }
         return $property;
+    }
+
+    // Nombre d'annonces actives d'un propriétaire
+    public function getOwnerPropertyCount($owner_id) {
+        $this->db->query('SELECT COUNT(*) as total FROM properties WHERE owner_id = :oid AND status = "active"');
+        $this->db->bind(':oid', $owner_id);
+        return $this->db->single()->total;
     }
 
     // Par propriétaire

@@ -75,7 +75,13 @@ class ClientController extends Controller {
         $msgModel = $this->model('Message');
         $conversations = $msgModel->getConversations($_SESSION['user_id']);
         $contacts = $msgModel->getContacts($_SESSION['user_id'], 3);
-        $data = ['title' => 'Messages', 'conversations' => $conversations, 'contacts' => $contacts];
+        $data = [
+            'title' => 'Messages', 
+            'conversations' => $conversations, 
+            'contacts' => $contacts,
+            'open_user' => intval($_GET['open'] ?? 0),
+            'prefill_message' => $_GET['prefill'] ?? ''
+        ];
         $this->view('client/messages', $data);
     }
 

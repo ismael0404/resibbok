@@ -1,4 +1,6 @@
-<?php require APPROOT . '/views/inc/header.php'; ?>
+<?php require APPROOT . '/views/inc/header.php'; 
+
+?>
 
 <div style="background: var(--bg-light); border-bottom: 1px solid var(--border); padding: 20px 0;">
     <div style="max-width: 1200px; margin: 0 auto; padding: 0 20px;">
@@ -60,7 +62,7 @@
             <?php foreach($data['properties'] as $prop): ?>
                 <div class="property-card" onclick="window.location.href='<?= URLROOT; ?>/residences/show/<?= $prop->id; ?>'">
                     <div class="property-image">
-                        <img src="<?= $prop->primary_image ? URLROOT.'/uploads/'.$prop->primary_image : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80'; ?>" alt="<?= htmlspecialchars($prop->title); ?>">
+                        <img src="<?= getDynamicPropertyImages($prop, 1)[0]; ?>" alt="<?= htmlspecialchars($prop->title); ?>">
                         
                         <?php if($prop->listing_type == 'reservation'): ?>
                             <span class="property-badge" style="background: var(--primary);">Réservation</span>
@@ -74,7 +76,6 @@
                         <div class="property-location">
                             <i class="fa-solid fa-location-dot"></i> <?= htmlspecialchars($prop->city); ?> - <?= htmlspecialchars($prop->category_name); ?>
                             
-                            <!-- Dynamic Status -->
                             <?php if($prop->status == 'active'): ?>
                                 <span style="margin-left:auto; color:var(--success); font-weight:700;">Disponible</span>
                             <?php elseif($prop->status == 'reserved'): ?>

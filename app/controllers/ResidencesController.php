@@ -52,14 +52,30 @@ class ResidencesController extends Controller {
 
         $similar = $propModel->getSimilarProperties($id, $property->category_id, $property->city, 4);
 
+        // Nombre d'annonces actives du propriétaire
+        $ownerPropertyCount = $propModel->getOwnerPropertyCount($property->owner_id);
+
+        // Assigner les images de la galerie pour le helper d'images
+        $property->gallery_images = $images;
+
+        // Vérifier si l'utilisateur a déjà commenté
+        $hasReviewed = false;
+        if (isset($_SESSION['user_id'])) {
+            require_once APPROOT . '/models/Review.php';
+            $reviewModel = new Review();
+            $hasReviewed = $reviewModel->hasUserReviewed($id, $_SESSION['user_id']);
+        }
+
         $data = [
             'title' => $property->title,
             'property' => $property,
+            'hasReviewed' => $hasReviewed,
             'images' => $images,
             'amenities' => $amenities,
             'reviews' => $reviews,
             'similar' => $similar,
-            'is_favorite' => $isFavorite
+            'is_favorite' => $isFavorite,
+            'owner_property_count' => $ownerPropertyCount
         ];
         $this->view('residences/show', $data);
     }

@@ -74,10 +74,11 @@
             </div>
 
             <!-- Chat Area -->
-            <div style="flex: 1; display: flex; flex-direction: column; background: url('https://www.transparenttextures.com/patterns/cubes.png') var(--bg-main);">
-                <div id="chat-header" style="padding: 20px; border-bottom: 1px solid var(--border); background: var(--white); display: flex; align-items: center; gap: 15px; font-weight: 700; font-size: 1.1rem; visibility: hidden;">
+            <div style="flex: 1; display: flex; flex-direction: column; background: var(--bg-main);">
+                <div id="chat-header" style="padding: 15px 20px; border-bottom: 1px solid var(--border); background: var(--white); display: flex; align-items: center; gap: 15px; font-weight: 700; font-size: 1.1rem; visibility: hidden;">
                     <div style="width: 40px; height: 40px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 1.2rem;"><i class="fa-solid fa-user"></i></div>
                     <span id="chat-user-name">Sélectionnez un contact</span>
+                    <div id="chat-property-preview" class="msg-property-preview" style="display: none;"></div>
                 </div>
 
                 <div id="chat-messages" style="flex: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 15px;">
@@ -87,7 +88,7 @@
                     </div>
                 </div>
 
-                <div id="chat-input-area" style="padding: 20px; background: var(--white); border-top: 1px solid var(--border); visibility: hidden;">
+                <div id="chat-input-area" style="padding: 15px 20px; background: var(--white); border-top: 1px solid var(--border); visibility: hidden;">
                     <form id="chat-form" style="display: flex; gap: 10px;" onsubmit="sendMessage(event)">
                         <input type="hidden" id="receiver_id" value="">
                         <input type="text" id="message_text" class="form-control" placeholder="Écrivez votre message..." required style="border-radius: 50px;">
@@ -101,10 +102,12 @@
 
 <style>
     .contact-item:hover { background: var(--white); }
-    .msg-bubble { max-width: 70%; padding: 12px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.4; position: relative; }
+    .contact-item.active-contact { background: var(--white); border-left: 3px solid var(--primary); }
+    .msg-bubble { max-width: 70%; padding: 12px 18px; border-radius: 20px; font-size: 0.95rem; line-height: 1.4; position: relative; animation: slideInUp 0.3s ease; }
     .msg-sent { align-self: flex-end; background: var(--primary); color: white; border-bottom-right-radius: 5px; }
     .msg-received { align-self: flex-start; background: var(--white); border: 1px solid var(--border); color: var(--text-main); border-bottom-left-radius: 5px; }
     .msg-time { font-size: 0.7rem; opacity: 0.7; margin-top: 5px; text-align: right; }
+    @keyframes slideInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 </style>
 
 <script>
@@ -120,7 +123,32 @@ function loadThread(userId, userName) {
     document.getElementById('chat-user-name').textContent = userName;
     document.getElementById('receiver_id').value = userId;
     
+    // Highlight active contact
+    document.querySelectorAll('.contact-item').forEach(el => el.classList.remove('active-contact'));
+    event && event.currentTarget && event.currentTarget.classList.add('active-contact');
+    
     fetchMessages();
+    loadPropertyPreview(userId);
+}
+
+function loadPropertyPreview(userId) {
+    fetch('<?= URLROOT; ?>/messages/propertyInfo/' + userId)
+    .then(r => r.json())
+    .then(data => {
+        const preview = document.getElementById('chat-property-preview');
+        if(data.success && data.property) {
+            const p = data.property;
+            const imgSrc = p.property_image ? '<?= URLROOT; ?>/uploads/' + p.property_image : '<?= URLROOT; ?>/public/images/villa-cocody-1.jpg';
+            let priceText = '';
+            if(p.listing_type === 'reservation') priceText = new Intl.NumberFormat('fr-FR').format(p.price_per_night) + ' FCFA/nuit';
+            else if(p.listing_type === 'rental') priceText = new Intl.NumberFormat('fr-FR').format(p.price_monthly) + ' FCFA/mois';
+            else priceText = new Intl.NumberFormat('fr-FR').format(p.price_sale) + ' FCFA';
+            preview.innerHTML = `<img src="${imgSrc}" alt=""><div class="preview-info"><div class="preview-title">${p.title}</div><div class="preview-price">${priceText}</div></div>`;
+            preview.style.display = 'flex';
+        } else {
+            preview.style.display = 'none';
+        }
+    }).catch(() => { document.getElementById('chat-property-preview').style.display = 'none'; });
 }
 
 function fetchMessages() {
@@ -142,12 +170,8 @@ function fetchMessages() {
                 const isSent = msg.sender_id == data.current_user;
                 const div = document.createElement('div');
                 div.className = 'msg-bubble ' + (isSent ? 'msg-sent' : 'msg-received');
-                
                 const time = new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                div.innerHTML = `
-                    <div>${msg.message.replace(/\n/g, '<br>')}</div>
-                    <div class="msg-time">${time}</div>
-                `;
+                div.innerHTML = `<div>${msg.message.replace(/\n/g, '<br>')}</div><div class="msg-time">${time}</div>`;
                 container.appendChild(div);
             });
             
@@ -163,30 +187,39 @@ function sendMessage(e) {
 
     fetch('<?= URLROOT; ?>/messages/send', {
         method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'X-Requested-With': 'XMLHttpRequest'
-        },
-        body: JSON.stringify({
-            receiver_id: currentReceiver,
-            message: text
-        })
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({ receiver_id: currentReceiver, message: text })
     })
     .then(res => res.json())
     .then(data => {
         if(data.success) {
             document.getElementById('message_text').value = '';
-            fetchMessages(); // Recharge les messages pour afficher le nouveau
+            fetchMessages();
         } else {
             showToast(data.error || 'Erreur lors de l\'envoi', 'error');
         }
     });
 }
 
-// Polling toutes les 5 secondes pour actualiser les messages
-setInterval(() => {
-    if(currentReceiver) fetchMessages();
-}, 5000);
+// Auto-open conversation from URL params
+<?php if(!empty($data['open_user'])): ?>
+document.addEventListener('DOMContentLoaded', function() {
+    const openUserId = <?= intval($data['open_user']); ?>;
+    // Find contact name from conversations or contacts
+    let userName = 'Propriétaire';
+    <?php foreach($data['conversations'] as $conv): ?>
+        if(<?= $conv->other_user_id; ?> === openUserId) userName = '<?= addslashes($conv->first_name . ' ' . $conv->last_name); ?>';
+    <?php endforeach; ?>
+    <?php if(!empty($data['contacts'])): foreach($data['contacts'] as $c): ?>
+        if(<?= $c->id; ?> === openUserId) userName = '<?= addslashes($c->first_name . ' ' . $c->last_name); ?>';
+    <?php endforeach; endif; ?>
+    loadThread(openUserId, userName);
+});
+<?php endif; ?>
+
+// Polling every 5s
+setInterval(() => { if(currentReceiver) fetchMessages(); }, 5000);
 </script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
+

@@ -52,33 +52,19 @@
             </div>
         </div>
 
-        <?php if(!empty($data['images'])): ?>
-            <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 200px 200px; gap: 10px; border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 40px;">
-                <?php $primary = $data['images'][0]; ?>
-                <div id="main-gallery-img" style="grid-row: span 2; background: url('<?= URLROOT.'/uploads/'.$primary->image_path; ?>') center/cover; cursor: pointer; transition: background-image 0.3s ease;"></div>
-                
-                <?php for($i=1; $i<=4; $i++): ?>
-                    <?php if(isset($data['images'][$i])): ?>
-                        <div class="gallery-thumb" onclick="changeMainImage('<?= URLROOT.'/uploads/'.$data['images'][$i]->image_path; ?>')" style="background: url('<?= URLROOT.'/uploads/'.$data['images'][$i]->image_path; ?>') center/cover; cursor: pointer; position: relative;">
-                            <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.1); transition: 0.3s;" onmouseover="this.style.background='rgba(0,0,0,0)'" onmouseout="this.style.background='rgba(0,0,0,0.1)'"></div>
-                        </div>
-                    <?php else: ?>
-                        <div style="background: var(--border);"></div>
-                    <?php endif; ?>
-                <?php endfor; ?>
-            </div>
+        <?php 
+            // Obtenir 5 images dynamiques uniques garanties
+            $displayImages = getDynamicPropertyImages($data['property'], 5); 
+        ?>
+        <div style="display: grid; grid-template-columns: 2fr 1fr 1fr; grid-template-rows: 200px 200px; gap: 10px; border-radius: var(--radius-lg); overflow: hidden; margin-bottom: 40px;">
+            <div id="main-gallery-img" style="grid-row: span 2; background: url('<?= $displayImages[0]; ?>') center/cover; cursor: pointer; transition: background-image 0.3s ease;"></div>
             
-            <!-- Miniatures Supplémentaires si plus de 5 images -->
-            <?php if(count($data['images']) > 5): ?>
-                <div style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; margin-bottom: 40px;">
-                    <?php foreach($data['images'] as $img): ?>
-                        <div onclick="changeMainImage('<?= URLROOT.'/uploads/'.$img->image_path; ?>')" style="width: 100px; height: 70px; border-radius: var(--radius-sm); background: url('<?= URLROOT.'/uploads/'.$img->image_path; ?>') center/cover; cursor: pointer; flex-shrink: 0; opacity: 0.7; transition: 0.3s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.7"></div>
-                    <?php endforeach; ?>
+            <?php for($i=1; $i<=4; $i++): ?>
+                <div class="gallery-thumb" onclick="changeMainImage('<?= $displayImages[$i]; ?>')" style="background: url('<?= $displayImages[$i]; ?>') center/cover; cursor: pointer; position: relative; overflow: hidden;">
+                    <div style="position: absolute; inset: 0; background: rgba(0,0,0,0.2); transition: 0.3s;" onmouseover="this.style.background='rgba(0,0,0,0)'; this.parentElement.style.transform='scale(1.02)';" onmouseout="this.style.background='rgba(0,0,0,0.2)'; this.parentElement.style.transform='scale(1)';"></div>
                 </div>
-            <?php endif; ?>
-        <?php else: ?>
-            <div style="height: 400px; border-radius: var(--radius-lg); background: url('https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=1200&q=80') center/cover; margin-bottom: 40px;"></div>
-        <?php endif; ?>
+            <?php endfor; ?>
+        </div>
     </div>
 </div>
 
@@ -237,14 +223,15 @@
                         <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">Pour ce type de bien, veuillez contacter directement le propriétaire pour organiser une visite et discuter des modalités.</p>
                     </div>
                     
-                    <button onclick="contactOwner()" class="btn btn-primary btn-block btn-lg" style="width: 100%; margin-bottom: 15px; background: linear-gradient(to right, var(--primary), var(--primary-dark)); border: none;">
+                    <button onclick="openMessagePrefillModal()" class="btn btn-primary btn-block btn-lg" style="width: 100%; margin-bottom: 15px; background: linear-gradient(to right, var(--primary), var(--primary-dark)); border: none;">
+                        <i class="fa-solid fa-<?= $data['property']->listing_type == 'rental' ? 'key' : 'cart-shopping'; ?>"></i>
                         <?= $data['property']->listing_type == 'rental' ? 'Louer maintenant' : 'Acheter'; ?>
                     </button>
                     
                     <div style="text-align: center;">
-                        <a href="tel:<?= $data['property']->owner_phone; ?>" class="btn btn-outline btn-block" style="width: 100%;">
-                            <i class="fa-solid fa-phone"></i> Afficher le numéro
-                        </a>
+                        <button onclick="openOwnerModal()" class="btn btn-outline btn-block" style="width: 100%;">
+                            <i class="fa-solid fa-user-tie"></i> Voir le profil du propriétaire
+                        </button>
                     </div>
                 <?php endif; ?>
             <?php endif; ?>
@@ -256,8 +243,36 @@
 <!-- Reviews Section -->
 <div style="max-width: 1200px; margin: 0 auto; padding: 40px 20px; border-top: 1px solid var(--border);">
     <h3 style="font-size: 1.6rem; margin-bottom: 30px; display: flex; align-items: center; gap: 10px;">
-        <i class="fa-solid fa-star text-primary"></i> <?= count($data['reviews']); ?> avis
+        <i class="fa-solid fa-star text-primary"></i> <?= $data['property']->score > 0 ? number_format($data['property']->score, 1) . ' · ' : ''; ?><?= count($data['reviews']); ?> avis
     </h3>
+
+    <?php if(isset($_SESSION['user_id']) && !$data['hasReviewed'] && $_SESSION['user_role'] != 2): ?>
+        <div style="background: var(--bg-light); padding: 30px; border-radius: var(--radius-lg); margin-bottom: 40px; border: 1px solid var(--border);">
+            <h4 style="margin-bottom: 15px; font-size: 1.2rem;">Laissez un avis</h4>
+            <form action="<?= URLROOT; ?>/reviews/add" method="POST">
+                <input type="hidden" name="property_id" value="<?= $data['property']->id; ?>">
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Votre note</label>
+                    <div class="star-rating" style="display: flex; gap: 10px; font-size: 1.5rem; color: #ccc; cursor: pointer;">
+                        <i class="fa-solid fa-star star-item" data-val="1"></i>
+                        <i class="fa-solid fa-star star-item" data-val="2"></i>
+                        <i class="fa-solid fa-star star-item" data-val="3"></i>
+                        <i class="fa-solid fa-star star-item" data-val="4"></i>
+                        <i class="fa-solid fa-star star-item" data-val="5"></i>
+                    </div>
+                    <input type="hidden" name="rating" id="rating-val" value="0" required>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 10px; font-weight: 600;">Votre commentaire</label>
+                    <textarea name="comment" class="form-control" rows="4" placeholder="Partagez votre expérience..." required style="width: 100%; resize: none;"></textarea>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" id="submit-review" disabled>Publier mon avis</button>
+            </form>
+        </div>
+    <?php endif; ?>
     
     <?php if(empty($data['reviews'])): ?>
         <p style="color: var(--text-muted); text-align: center; padding: 40px; background: var(--bg-light); border-radius: var(--radius-lg);">Aucun avis pour le moment.</p>
@@ -298,7 +313,7 @@
             <div class="property-card" onclick="window.location.href='<?= URLROOT; ?>/residences/show/<?= $prop->id; ?>'" style="cursor: pointer;">
                 <div class="property-image" style="height: 180px;">
                     <div style="position: absolute; inset: 0; background: linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 50%); z-index: 1;"></div>
-                    <img src="<?= $prop->primary_image ? URLROOT.'/uploads/'.$prop->primary_image : 'https://images.unsplash.com/photo-1564013799919-ab600027ffc6?auto=format&fit=crop&w=600&q=80'; ?>" alt="<?= htmlspecialchars($prop->title); ?>">
+                    <img src="<?= getDynamicPropertyImages($prop, 1)[0]; ?>" alt="<?= htmlspecialchars($prop->title); ?>">
                     
                     <!-- Dynamic Status Badge -->
                     <?php if($prop->listing_type == 'reservation'): ?>
@@ -328,10 +343,140 @@
 </div>
 <?php endif; ?>
 
+<!-- Owner Modal -->
+<div class="owner-modal-overlay" id="ownerModal" onclick="if(event.target===this)closeOwnerModal()">
+    <div class="owner-modal">
+        <button class="owner-modal-close" onclick="closeOwnerModal()"><i class="fa-solid fa-xmark"></i></button>
+        <div style="text-align: center;">
+            <div class="owner-avatar-lg">
+                <?php if($data['property']->avatar): ?>
+                    <img src="<?= URLROOT.'/uploads/'.$data['property']->avatar; ?>">
+                <?php else: ?>
+                    <?= substr($data['property']->first_name, 0, 1); ?>
+                <?php endif; ?>
+            </div>
+            <h3 style="margin-bottom: 5px;"><?= htmlspecialchars($data['property']->first_name . ' ' . $data['property']->last_name); ?></h3>
+            <?php if(!empty($data['property']->owner_verification_badge)): ?>
+                <span class="owner-badge-verified"><i class="fa-solid fa-circle-check"></i> Vérifié</span>
+            <?php endif; ?>
+        </div>
+        <div class="owner-stats-grid">
+            <div class="owner-stat">
+                <div class="stat-value"><?= $data['owner_property_count']; ?></div>
+                <div class="stat-label">Annonces actives</div>
+            </div>
+            <div class="owner-stat">
+                <div class="stat-value"><?= date('M Y', strtotime($data['property']->owner_created_at ?? 'now')); ?></div>
+                <div class="stat-label">Membre depuis</div>
+            </div>
+        </div>
+        <div style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 15px;">
+            <?php if(!empty($data['property']->owner_city)): ?>
+                <div style="margin-bottom: 8px;"><i class="fa-solid fa-location-dot" style="width:20px; color:var(--primary);"></i> <?= htmlspecialchars($data['property']->owner_city); ?></div>
+            <?php endif; ?>
+            <div style="margin-bottom: 8px;"><i class="fa-solid fa-envelope" style="width:20px; color:var(--primary);"></i> <?= htmlspecialchars($data['property']->owner_email); ?></div>
+            <div><i class="fa-solid fa-phone" style="width:20px; color:var(--primary);"></i> <?= htmlspecialchars($data['property']->owner_phone); ?></div>
+        </div>
+        <div class="owner-modal-actions">
+            <button onclick="closeOwnerModal();openMessagePrefillModal();" class="btn btn-primary"><i class="fa-solid fa-paper-plane"></i> Message</button>
+            <a href="tel:<?= $data['property']->owner_phone; ?>" class="btn btn-outline"><i class="fa-solid fa-phone"></i> Appeler</a>
+        </div>
+    </div>
+</div>
+
+<!-- Message Prefill Modal -->
+<div class="msg-prefill-overlay" id="msgPrefillModal" onclick="if(event.target===this)closeMsgPrefillModal()">
+    <div class="msg-prefill-modal">
+        <h3><i class="fa-solid fa-paper-plane text-primary"></i> Contacter le propriétaire</h3>
+        <p style="color: var(--text-muted); font-size: 0.9rem;">Personnalisez votre message avant de l'envoyer :</p>
+        <textarea id="prefill-message">Bonjour, je suis intéressé par votre bien : <?= htmlspecialchars($data['property']->title); ?>. Pouvez-vous me donner plus d'informations ?</textarea>
+        <div class="msg-prefill-actions">
+            <button onclick="closeMsgPrefillModal()" class="btn btn-outline">Annuler</button>
+            <button onclick="sendPrefillMessage()" class="btn btn-primary" id="send-prefill-btn"><i class="fa-solid fa-paper-plane"></i> Envoyer</button>
+        </div>
+    </div>
+</div>
+
 <script>
 function changeMainImage(url) {
-    const mainImg = document.getElementById('main-gallery-img');
-    mainImg.style.backgroundImage = `url('${url}')`;
+    document.getElementById('main-gallery-img').style.backgroundImage = `url('${url}')`;
+}
+
+// --- Star Rating Interactions ---
+document.addEventListener('DOMContentLoaded', () => {
+    const stars = document.querySelectorAll('.star-item');
+    const ratingInput = document.getElementById('rating-val');
+    const submitBtn = document.getElementById('submit-review');
+
+    if(stars.length > 0) {
+        stars.forEach(star => {
+            star.addEventListener('mouseover', function() {
+                const val = this.getAttribute('data-val');
+                highlightStars(val);
+            });
+
+            star.addEventListener('mouseout', function() {
+                const val = ratingInput.value;
+                highlightStars(val);
+            });
+
+            star.addEventListener('click', function() {
+                const val = this.getAttribute('data-val');
+                ratingInput.value = val;
+                highlightStars(val);
+                submitBtn.disabled = false;
+            });
+        });
+
+        function highlightStars(val) {
+            stars.forEach(s => {
+                if (s.getAttribute('data-val') <= val) {
+                    s.style.color = '#FFB400';
+                } else {
+                    s.style.color = '#ccc';
+                }
+            });
+        }
+    }
+});
+
+// --- Modals ---
+function openOwnerModal() { document.getElementById('ownerModal').classList.add('active'); }
+function closeOwnerModal() { document.getElementById('ownerModal').classList.remove('active'); }
+function openMessagePrefillModal() {
+    <?php if(!isset($_SESSION['user_id'])): ?>
+        window.location.href = '<?= URLROOT; ?>/auth/login'; return;
+    <?php elseif(isset($_SESSION['user_role']) && $_SESSION['user_role'] != 3): ?>
+        showToast('Connectez-vous en tant que client pour contacter le propriétaire', 'error'); return;
+    <?php endif; ?>
+    document.getElementById('msgPrefillModal').classList.add('active');
+}
+function closeMsgPrefillModal() { document.getElementById('msgPrefillModal').classList.remove('active'); }
+
+function sendPrefillMessage() {
+    const msg = document.getElementById('prefill-message').value.trim();
+    if(!msg) { showToast('Veuillez écrire un message', 'error'); return; }
+    const btn = document.getElementById('send-prefill-btn');
+    btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Envoi...';
+
+    fetch('<?= URLROOT; ?>/messages/startConversation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+        body: JSON.stringify({
+            receiver_id: <?= $data['property']->owner_id; ?>,
+            property_id: <?= $data['property']->id; ?>,
+            message: msg
+        })
+    })
+    .then(r => r.json())
+    .then(d => {
+        if(d.success) {
+            window.location.href = '<?= URLROOT; ?>/client/messages?open=' + d.receiver_id;
+        } else {
+            showToast(d.error || 'Erreur', 'error');
+            btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Envoyer';
+        }
+    }).catch(() => { btn.disabled = false; btn.innerHTML = '<i class="fa-solid fa-paper-plane"></i> Envoyer'; });
 }
 
 <?php if(isset($_SESSION['user_id'])): ?>
@@ -346,41 +491,18 @@ function toggleFavorite(id) {
         if(data.success) {
             const btn = document.getElementById('fav-btn');
             if(data.action === 'added') {
-                btn.classList.remove('btn-outline');
-                btn.classList.add('btn-primary');
+                btn.classList.remove('btn-outline'); btn.classList.add('btn-primary');
                 btn.innerHTML = '<i class="fa-solid fa-heart"></i> Sauvegardé';
                 showToast('Ajouté aux favoris !', 'success');
             } else {
-                btn.classList.remove('btn-primary');
-                btn.classList.add('btn-outline');
+                btn.classList.remove('btn-primary'); btn.classList.add('btn-outline');
                 btn.innerHTML = '<i class="fa-solid fa-heart"></i> Sauvegarder';
                 showToast('Retiré des favoris', 'info');
             }
         }
     });
 }
-
-function contactOwner() {
-    <?php if($_SESSION['user_role'] == 3): ?>
-        fetch('<?= URLROOT; ?>/messages/send', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-            body: JSON.stringify({
-                receiver_id: <?= $data['property']->owner_id; ?>,
-                property_id: <?= $data['property']->id; ?>,
-                message: "Bonjour, je suis très intéressé par votre bien : <?= addslashes(htmlspecialchars($data['property']->title)); ?>. Pouvons-nous en discuter ?"
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if(data.success) {
-                window.location.href = '<?= URLROOT; ?>/client/messages';
-            }
-        });
-    <?php else: ?>
-        showToast('Connectez-vous en tant que client pour contacter le propriétaire', 'error');
-    <?php endif; ?>
-}
+function contactOwner() { openMessagePrefillModal(); }
 <?php else: ?>
 function toggleFavorite(id) { window.location.href = '<?= URLROOT; ?>/auth/login'; }
 function contactOwner() { window.location.href = '<?= URLROOT; ?>/auth/login'; }
@@ -390,40 +512,29 @@ function checkAvailability() {
     const ci = document.getElementById('check_in').value;
     const co = document.getElementById('check_out').value;
     const propId = <?= $data['property']->id; ?>;
-    
     if(!ci || !co) return;
-    
     if(new Date(co) <= new Date(ci)) {
         showToast("La date de départ doit être après l'arrivée", "error");
-        document.getElementById('check_out').value = '';
-        return;
+        document.getElementById('check_out').value = ''; return;
     }
-
     fetch(`<?= URLROOT; ?>/reservations/checkAvailability?property_id=${propId}&check_in=${ci}&check_out=${co}`)
     .then(res => res.json())
     .then(data => {
         const btn = document.getElementById('book-btn');
         const err = document.getElementById('booking-error');
         const sum = document.getElementById('booking-summary');
-        
         if(data.available) {
-            btn.innerHTML = 'Réserver';
-            btn.disabled = false;
-            err.style.display = 'none';
-            sum.style.display = 'block';
-            
+            btn.innerHTML = 'Réserver'; btn.disabled = false; err.style.display = 'none'; sum.style.display = 'block';
             document.getElementById('calc-nights').textContent = `${new Intl.NumberFormat('fr-FR').format(data.price_per_night)} FCFA x ${data.nights} nuits`;
             document.getElementById('calc-subtotal').textContent = `${new Intl.NumberFormat('fr-FR').format(data.subtotal)} FCFA`;
             document.getElementById('calc-fee').textContent = `${new Intl.NumberFormat('fr-FR').format(data.service_fee)} FCFA`;
             document.getElementById('calc-total').textContent = `${new Intl.NumberFormat('fr-FR').format(data.total)} FCFA`;
         } else {
-            btn.innerHTML = 'Dates non disponibles';
-            btn.disabled = true;
-            err.style.display = 'block';
-            sum.style.display = 'none';
+            btn.innerHTML = 'Dates non disponibles'; btn.disabled = true; err.style.display = 'block'; sum.style.display = 'none';
         }
     });
 }
 </script>
 
 <?php require APPROOT . '/views/inc/footer.php'; ?>
+
